@@ -1,0 +1,29 @@
+Daftar Akun Dummy Smart Attendance
+===================================
+
+1. Akun Mahasiswa (Siswa Dummy)
+-----------------------------------
+Email    : siswa@test.com
+Password : password123
+
+Email    : andrikurniawan4@gmail.com
+Password : password123
+
+2. Akun Dosen (Dr. Budi Santoso)
+-----------------------------------
+Email    : dosen@test.com
+Password : password123
+
+Email    : adamzaquan@gmail.com
+Password : password123
+
+3. Akun Admin (Super Admin)
+-----------------------------------
+Email    : admin@test.com
+Password : password123
+
+Catatan: 
+- Akun Mahasiswa digunakan untuk uji coba absen (scan QR).
+- Akun Dosen digunakan untuk membuat mata kuliah dan mengaktifkan sesi absensi (generate QR).
+- Akun Admin digunakan untuk mengelola data keseluruhan.
+- Pastikan Anda sudah menjalankan script SQL di Supabase agar akun-akun ini dapat digunakan.
