@@ -7,6 +7,7 @@ import 'core/models/attendance_model.dart';
 import 'core/models/course_model.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/register_screen.dart';
+import 'features/auth/update_password_screen.dart';
 import 'features/student/student_dashboard.dart';
 import 'features/student/scan_qr_screen.dart';
 import 'features/student/attendance_history_screen.dart';
@@ -89,12 +90,15 @@ class SmartAttendanceApp extends StatelessWidget {
       redirect: (ctx, state) {
         final auth = ctx.read<AuthProvider>();
         final isLoggingIn = state.matchedLocation.startsWith('/login');
+        final isUpdatingPassword = state.matchedLocation.startsWith('/update-password');
+        final isRoot = state.matchedLocation == '/';
 
         if (auth.status == AuthStatus.initial) return null;
+        if (auth.status == AuthStatus.recovery) return '/update-password';
 
-        if (!auth.isAuthenticated && !isLoggingIn) return '/login';
+        if (!auth.isAuthenticated && !isLoggingIn && !isRoot) return '/login';
 
-        if (auth.isAuthenticated && isLoggingIn) {
+        if (auth.isAuthenticated && (isLoggingIn || isUpdatingPassword || isRoot)) {
           final user = auth.user;
           if (user?.isMahasiswa ?? false) return '/student';
           if (user?.isDosen ?? false) return '/lecturer';
@@ -105,8 +109,18 @@ class SmartAttendanceApp extends StatelessWidget {
       },
       refreshListenable: context.read<AuthProvider>(),
       routes: [
+        // Root route
+        GoRoute(
+          path: '/',
+          builder: (_, __) => const Scaffold(
+            backgroundColor: AppColors.primaryDark,
+            body: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+          ),
+        ),
+
         // Auth
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+        GoRoute(path: '/update-password', builder: (_, __) => const UpdatePasswordScreen()),
 
         // Student routes
         GoRoute(

@@ -8,6 +8,7 @@ import '../../core/models/user_model.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/providers/auth_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -33,6 +34,90 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Arsitektur',
   ];
   int _step = 0;
+  bool _isCheckingNim = false;
+
+  Future<void> _checkNimAndProceed() async {
+    if (_nameCtrl.text.trim().isEmpty || _nimCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Mohon lengkapi Nama dan NIM/NIP terlebih dahulu!'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          dismissDirection: DismissDirection.up,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 130,
+            left: 20,
+            right: 20,
+          ),
+        ),
+      );
+      return;
+    }
+    if (_selectedRole == UserRole.mahasiswa && _selectedProdi == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Mohon pilih Program Studi!'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          dismissDirection: DismissDirection.up,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 130,
+            left: 20,
+            right: 20,
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isCheckingNim = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final existing = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('nim_or_nip', _nimCtrl.text.trim())
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      if (existing != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('NIM/NIP ${_nimCtrl.text.trim()} sudah digunakan!'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            dismissDirection: DismissDirection.up,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 130,
+              left: 20,
+              right: 20,
+            ),
+          ),
+        );
+      } else {
+        setState(() => _step = 1);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Terjadi kesalahan saat mengecek NIM/NIP'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            dismissDirection: DismissDirection.up,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 130,
+              left: 20,
+              right: 20,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCheckingNim = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -146,13 +231,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: _step == 0
                     ? CustomButton(
                         label: 'Lanjut',
-                        onPressed: () {
-                          if (_nameCtrl.text.isNotEmpty &&
-                              _nimCtrl.text.isNotEmpty &&
-                              (_selectedRole != UserRole.mahasiswa || _selectedProdi != null)) {
-                            setState(() => _step = 1);
-                          }
-                        },
+                        onPressed: _checkNimAndProceed,
+                        isLoading: _isCheckingNim,
                         icon: const Icon(
                           Icons.arrow_forward_rounded,
                           color: Colors.white,

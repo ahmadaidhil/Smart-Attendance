@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/models/user_model.dart';
 import '../../core/services/auth_service.dart';
 
-enum AuthStatus { initial, authenticated, unauthenticated, loading }
+enum AuthStatus { initial, authenticated, unauthenticated, loading, recovery }
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -23,11 +23,22 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _init() async {
+    // Give Supabase time to process deep links (like password recovery) from the URL hash
+    await Future.delayed(const Duration(milliseconds: 800));
+
     _authService.authStateStream.listen((state) async {
+      if (state.event == AuthChangeEvent.passwordRecovery) {
+        _status = AuthStatus.recovery;
+        notifyListeners();
+        return;
+      }
+      
       if (state.event == AuthChangeEvent.signedIn ||
           state.event == AuthChangeEvent.initialSession) {
         if (state.session != null) {
-          await _loadProfile();
+          if (_status != AuthStatus.recovery) {
+            await _loadProfile();
+          }
         } else {
           _status = AuthStatus.unauthenticated;
           _user = null;
@@ -40,13 +51,19 @@ class AuthProvider extends ChangeNotifier {
       }
     });
 
-    // Check initial session
+    // Check initial session (fallback if stream is delayed)
+    if (_status != AuthStatus.initial) return;
+    
     final profile = await _authService.getCurrentProfile();
+    if (_status == AuthStatus.recovery) return;
+
     if (profile != null) {
       _user = profile;
       _status = AuthStatus.authenticated;
     } else {
-      _status = AuthStatus.unauthenticated;
+      if (_status != AuthStatus.recovery) {
+        _status = AuthStatus.unauthenticated;
+      }
     }
     notifyListeners();
   }
@@ -169,6 +186,10 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _loadProfile() async {
     final profile = await _authService.getCurrentProfile();
+    
+    // Do not overwrite status if a password recovery is in progress
+    if (_status == AuthStatus.recovery) return;
+
     if (profile != null) {
       _user = profile;
       _status = AuthStatus.authenticated;
@@ -183,7 +204,7 @@ class AuthProvider extends ChangeNotifier {
       return 'Email atau password salah';
     }
     if (error.contains('User already registered')) {
-      return 'Email sudah terdaftar';
+      return 'Terjadi kesalahan sistem';
     }
     if (error.contains('Password should be at least 6')) {
       return 'Password minimal 6 karakter';
@@ -192,5 +213,10 @@ class AuthProvider extends ChangeNotifier {
       return 'Tidak ada koneksi internet';
     }
     return error; // Return the exact error for debugging
+  }
+
+  Future<void> resolveRecovery() async {
+    _status = AuthStatus.authenticated;
+    await _loadProfile();
   }
 }
